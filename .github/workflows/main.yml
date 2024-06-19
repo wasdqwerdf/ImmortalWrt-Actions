@@ -41,8 +41,8 @@ jobs:
     - name: 下载文件
       run: |
         cd immortalwrt-mt798x
-        make defconfig
         cp -f defconfig/mt7981-ax3000.config .config
+        make defconfig
         make download -j8 V=10
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;  

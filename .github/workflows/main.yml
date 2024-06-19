@@ -42,7 +42,7 @@ jobs:
     - name: 下载文件
       run: |
         cd immortalwrt-mt798x
-        make download -j8 V=10
+        make download -j1 V=s
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;  
 

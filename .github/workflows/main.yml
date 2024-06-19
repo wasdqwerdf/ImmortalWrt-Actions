@@ -32,16 +32,16 @@ jobs:
       run: |
         git clone --depth=1 https://github.com/hanwckf/immortalwrt-mt798x.git
         
-    - name: 更新 & 安装 feeds & 执行脚本
+    - name: 更新 & 安装 feeds
       run: |   
         cd immortalwrt-mt798x
         ./scripts/feeds update -a
         ./scripts/feeds install -a
-        cp -f defconfig/mt7981-ax3000.config .config
         
     - name: 下载文件
       run: |
         cd immortalwrt-mt798x
+        cp -f defconfig/mt7981-ax3000.config .config
         make download -j1 V=s
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;  
@@ -92,7 +92,7 @@ jobs:
         echo "release_tag=${release_tag}" >> $GITHUB_OUTPUT
         echo "status=success" >> $GITHUB_OUTPUT
 
-    - name: 上传固件发布
+    - name: 固件发布
       uses: softprops/action-gh-release@v1
       if: steps.tag.outputs.status == 'success' && !cancelled()
       env:

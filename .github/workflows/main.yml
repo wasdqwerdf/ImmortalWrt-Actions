@@ -1,6 +1,101 @@
+name: Build immortalwrt-mt7981
+
+# 开启写权限，防止无法上传到release
+permissions: write-all
+
 on: push
+
+env:
+  UPLOAD_BIN_DIR: false
+  UPLOAD_FIRMWARE: false
+  UPLOAD_RELEASE: true
+  TZ: Asia/Shanghai
+
 jobs: 
-  job1: 
+  build: 
     runs-on: ubuntu-22.04
     steps: 
-    - run: uname -a
+    - name: 检查
+      uses: actions/checkout@main
+
+    - name: 初始化环境
+      run: |
+        sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.eu.org/init_build_environment.sh)'
+      
+    - name: 检查空间使用情况
+      if: (!cancelled())
+      run: df -hT      
+      
+    - name: 克隆源码
+      run: |
+        git clone --depth=1 https://github.com/hanwckf/immortalwrt-mt798x.git
+        
+    - name: 更新 & 安装 feeds & 执行脚本
+      run: |   
+        cd immortalwrt-mt798x
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+        cp -f defconfig/mt7981-ax3000.config .config
+        
+    - name: 下载文件
+      run: |
+        cd immortalwrt-mt798x
+        make download -j8 V=10
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;  
+
+    - name: 编译固件中
+      id: compile
+      run: |
+        cd immortalwrt-mt798x
+        echo -e "$(($(nproc)+1)) thread compile"
+        make -j$(($(nproc)+1)) || make -j$(nproc) || make -j1 V=s
+        echo "status=success" >> $GITHUB_OUTPUT      
+
+    - name: 空间使用情况
+      if: (!cancelled())
+      run: df -hT
+
+    - name: 上传 bin 目录
+      uses: actions/upload-artifact@main
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      with:
+        name: immortalwrt-mt798x_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: immortalwrt-mt798x/bin      
+
+    - name: 整理文件
+      id: organize
+      if: steps.compile.outputs.status == 'success'
+      run: |
+        cd immortalwrt-mt798x/bin/targets/*/*
+        rm -rf *.buildinfo 
+        rm -rf *.json 
+        rm -rf *.manifest 
+        rm -rf packages
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: 上传固件目录
+      uses: actions/upload-artifact@main
+      if: env.UPLOAD_FIRMWARE == 'true' && steps.organize.outputs.status == 'success' && !cancelled()
+      with:
+        name: immortalwrt-mt798x_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: ${{ env.FIRMWARE }}
+
+    - name: 生成发布标签
+      id: tag
+      if: env.UPLOAD_RELEASE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
+      run: |
+        release_tag=$(date +"%Y.%m.%d-immortalwrt-mt7981")
+        echo "release_tag=${release_tag}" >> $GITHUB_OUTPUT
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: 上传固件发布
+      uses: softprops/action-gh-release@v1
+      if: steps.tag.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        body_path: release.txt
+        files: ${{ env.FIRMWARE }}/*

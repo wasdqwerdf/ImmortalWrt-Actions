@@ -3,4 +3,4 @@ jobs:
   job1: 
     runs-on: ubuntu-22.04
     steps: 
-    - run: uname-a
+    - run: uname -a

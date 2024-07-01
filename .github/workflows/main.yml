@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps: 
     - name: 检查
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: 初始化环境
       env:
@@ -106,7 +106,7 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: 固件发布
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       if: steps.tag.outputs.status == 'success' && !cancelled()
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
